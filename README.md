@@ -1,5 +1,6 @@
 # ReadMerger
 *Never merge your reads with `find` and `cat` again!*
+[![Rust Build](https://github.com/nrminor/readmerger/actions/workflows/build-rust.yaml/badge.svg)](https://github.com/nrminor/readmerger/actions/workflows/build-rust.yaml) [![Open Source Files](https://github.com/nrminor/readmerger/actions/workflows/open-source-starter.yml/badge.svg)](https://github.com/nrminor/readmerger/actions/workflows/open-source-starter.yml)
 
 ### The Problem
 Readmerger isn't written yet, but the vision is for it to be a much faster replacement for using `cat` to merge Oxford Nanopore FASTQ files into one per barcode. Typically, Nanopore reads come out of basecalling and demultiplexing in many FASTQ files, which then must be merged. This is most often achieved with a command like this:
