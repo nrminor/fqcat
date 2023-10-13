@@ -52,6 +52,7 @@ pub fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()
     Ok(())
 }
 
+#[derive(Clone)]
 pub struct MergePair {
     left_file: PathBuf,
     right_file: PathBuf,
@@ -60,7 +61,7 @@ pub struct MergePair {
 pub struct MergeTree {
     level: usize,
     files: Vec<String>,
-    merge_pairs: Option<Vec<MergePair>>,
+    merge_pairs: Vec<MergePair>,
     subtree: Option<Box<MergeTree>>,
 }
 
@@ -70,14 +71,6 @@ pub fn build_merge_tree(
 ) -> Result<MergeTree, io::Error> {
     // handle the possibility that `level` was not specified
     let previous_level = level.unwrap_or(&0);
-
-    // build a new tree for the provided files
-    let mut tree = MergeTree {
-        level: previous_level + 1,
-        files: file_list.clone(),
-        merge_pairs: None,
-        subtree: None,
-    };
 
     // figure out how many files will be present after merging
     let new_file_count;
@@ -106,13 +99,17 @@ pub fn build_merge_tree(
 
     // finish constructing new file list
     for (i, _) in merge_pairs.iter().enumerate() {
-        let formatted_str = format!("level{}_tmp{}.fastq.zst", tree.level, i);
+        let formatted_str = format!("level{}_tmp{}.fastq.zst", previous_level + 1, i);
         new_files.push(formatted_str)
     }
 
-    // instantiate the merge pairs and file list into the tree
-    tree.merge_pairs = Some(merge_pairs);
-    tree.files = new_files;
+    // build a new tree for the provided files
+    let mut tree = MergeTree {
+        level: previous_level + 1,
+        files: new_files,
+        merge_pairs,
+        subtree: None,
+    };
 
     // if there are more than two new files, construct a subtree
     if &tree.files.len() > &2 {
@@ -132,11 +129,21 @@ fn merge_pair(pair: MergePair, output_name: String) {
     );
 }
 
-pub fn process_mergepairs(pairs: Vec<MergePair>, level: usize) {
+fn process_mergepairs(pairs: Vec<MergePair>, level: usize) {
     // placeholder function for allocating a process for each merge
     println!("Merging in level {} of the merge tree", level);
     for (i, pair) in pairs.into_iter().enumerate() {
         let output_name = format!("level{}_tmp{}.fastq.zst", level, i);
         merge_pair(pair, output_name);
+    }
+}
+
+pub fn traverse_tree(tree: &MergeTree) {
+    // place holder for recursive function that goes "down" the hierarchy of the merge tree
+    process_mergepairs(tree.merge_pairs.clone(), tree.level.clone());
+
+    // Recur on the subtree if it exists
+    if let Some(ref subtree) = tree.subtree {
+        traverse_tree(subtree);
     }
 }
