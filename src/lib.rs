@@ -7,6 +7,16 @@ use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
 
+    /*
+    NOTES TO SELF:
+
+    Will need to amend the functions below to retain the tmp fastq name from function
+    prepare_for_merges() throughout the merge tree and always append to it. Will also need
+    to code in behavior for if only two fastqs remain; in that case, merge them, convert
+    them to gzip, and apply the currently unused output filename.
+    
+    */
+
 pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
     // Construct the search pattern
     let pattern = format!("{}/*.fastq.gz", search_dir);
