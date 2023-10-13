@@ -4,7 +4,7 @@
 *Never merge your reads with `find` and `cat` again!*
 
 ### The Problem
-Readmerger isn't written yet, but the vision is for it to be a much faster replacement for using `cat` to merge Oxford Nanopore FASTQ files into one per barcode. Typically, Nanopore reads come out of basecalling and demultiplexing in many FASTQ files, which then must be merged. This is most often achieved with a command like this:
+Readmerger isn't finished yet, but the vision is for it to be a much faster replacement for using `cat` to merge Oxford Nanopore FASTQ files into one per barcode. Typically, Nanopore reads come out of basecalling and demultiplexing in many FASTQ files, which then must be merged. This is most often achieved with a command like this:
 ```
 cat ~/workdir/basecall/*runid*.fastq.gz > ~/workdir/basecall/basecall.fastq.gz
 ```
@@ -30,7 +30,7 @@ readmerger barcode01/
 
 Or also potentially like this:
 ```
-readmerger --verbose --show-progress --collect-stats barcode01/
+readmerger --verbose --show-progress --high-memory --collect-stats barcode01/
 ```
 
 The tool will use what I call a "merge tree", or "hierarchical merging." As an example, say there are eight FASTQs in a barcode directory. Readmerger will take each of the four pairs of FASTQs and merge each pair in parallel, resulting in 4 merged FASTQs. Then, it will do the same thing, merging each pair in parallel and outputting two FASTQs, at which point it will merge the last two and give you your final FASTQ. Like a March Madness Bracket, readmerger will start with the many tips of the tree of FASTQs and end up with one winner.
