@@ -1,7 +1,7 @@
 use clap::Parser;
 use glob::glob;
-use readmerger::process_fastq_gzip_to_zstd;
-use std::io;
+use readmerger::recode_gzip_to_zstd;
+use std::io::{self, ErrorKind};
 
 // Search for a pattern in a file and display the lines that contain it.
 #[derive(Parser)]
@@ -35,11 +35,15 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // loop through each FASTQ and convert them to ZSTD
-    for fastq in fastq_files {
-        process_fastq_gzip_to_zstd(&fastq, &output_path)?;
+    // Check if any matching files were found
+    if fastq_files.is_empty() {
+        return Err(io::Error::new(ErrorKind::NotFound, "No FASTQ files found"));
     }
 
-    println!("Processing completed successfully.");
+    // loop through each FASTQ and convert them to ZSTD
+    for fastq in fastq_files.iter() {
+        recode_gzip_to_zstd(&fastq, &output_path)?;
+    }
+
     Ok(())
 }
