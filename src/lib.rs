@@ -1,9 +1,39 @@
 use bio::io::fastq::{Reader, Record, Writer};
 use flate2::read::GzDecoder;
+use glob::glob;
 use std::fs;
+use std::io::ErrorKind;
 use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
+
+pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
+    // Construct the search pattern
+    let pattern = format!("{}/*.fastq.gz", search_dir);
+
+    // Initialize an empty vector to hold the paths
+    let mut fastq_files: Vec<String> = Vec::new();
+
+    // Use glob to search for files matching the pattern
+    for entry in
+        glob(&pattern).expect("Failed to find any FASTQ files in the provided directory pattern")
+    {
+        match entry {
+            Ok(path) => {
+                let path_str = path.display().to_string();
+                fastq_files.push(path_str);
+            }
+            Err(e) => println!("{:?}", e),
+        }
+    }
+
+    // Check if any matching files were found
+    if fastq_files.is_empty() {
+        return Err(io::Error::new(ErrorKind::NotFound, "No FASTQ files found"));
+    }
+
+    return Ok(fastq_files);
+}
 
 #[derive(Clone)]
 pub struct MergePair {
