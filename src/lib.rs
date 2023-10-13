@@ -5,53 +5,6 @@ use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
 
-pub fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
-    // Create a buffer for holding 1000 records
-    let mut buffer: Vec<Record> = Vec::with_capacity(1000);
-
-    // Open the gzipped input FASTQ file
-    let reader = BufReader::new(GzDecoder::new(fs::File::open(input_path)?));
-
-    // Create FASTQ reader
-    let fastq_reader = Reader::new(reader);
-
-    // Open the Zstd compressed output FASTQ file
-    let writer = BufWriter::new(Encoder::new(fs::File::create(output_path)?, 0)?);
-
-    // Create FASTQ writer
-    let mut fastq_writer = Writer::new(writer);
-
-    // Loop over records
-    for result in fastq_reader.records() {
-        match result {
-            Ok(record) => {
-                buffer.push(record);
-
-                if buffer.len() == 1000 {
-                    // Write the buffered records to the Zstd compressed output file
-                    for rec in &buffer {
-                        fastq_writer.write_record(rec)?;
-                    }
-
-                    // Clear the buffer
-                    buffer.clear();
-                }
-
-                // Write any remaining records in the buffer
-                for rec in &buffer {
-                    fastq_writer.write_record(rec)?;
-                }
-            }
-            Err(error) => {
-                eprintln!("Encountered an error while reading: {}", error);
-                continue;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 #[derive(Clone)]
 pub struct MergePair {
     left_file: PathBuf,
@@ -146,4 +99,68 @@ pub fn traverse_tree(tree: &MergeTree) {
     if let Some(ref subtree) = tree.subtree {
         traverse_tree(subtree);
     }
+}
+
+pub fn prepare_for_merges(file_list: Vec<String>) -> Result<Vec<String>, io::Error> {
+    let mut new_files = Vec::with_capacity(file_list.len());
+    let mut new_file_name: String;
+
+    for (i, file) in file_list.into_iter().enumerate() {
+        if i % 2 != 0 {
+            new_files.push(file);
+            continue;
+        }
+        new_file_name = format!("level{}_tmp{}.fastq.zst", 1, i);
+        recode_gzip_to_zstd(&file, &new_file_name)?;
+        new_files.push(new_file_name);
+    }
+
+    return Ok(new_files);
+}
+
+fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
+    // Create a buffer for holding 1000 records
+    let mut buffer: Vec<Record> = Vec::with_capacity(1000);
+
+    // Open the gzipped input FASTQ file
+    let reader = BufReader::new(GzDecoder::new(fs::File::open(input_path)?));
+
+    // Create FASTQ reader
+    let fastq_reader = Reader::new(reader);
+
+    // Open the Zstd compressed output FASTQ file
+    let writer = BufWriter::new(Encoder::new(fs::File::create(output_path)?, 0)?);
+
+    // Create FASTQ writer
+    let mut fastq_writer = Writer::new(writer);
+
+    // Loop over records
+    for result in fastq_reader.records() {
+        match result {
+            Ok(record) => {
+                buffer.push(record);
+
+                if buffer.len() == 1000 {
+                    // Write the buffered records to the Zstd compressed output file
+                    for rec in &buffer {
+                        fastq_writer.write_record(rec)?;
+                    }
+
+                    // Clear the buffer
+                    buffer.clear();
+                }
+
+                // Write any remaining records in the buffer
+                for rec in &buffer {
+                    fastq_writer.write_record(rec)?;
+                }
+            }
+            Err(error) => {
+                eprintln!("Encountered an error while reading: {}", error);
+                continue;
+            }
+        }
+    }
+
+    Ok(())
 }

@@ -1,6 +1,6 @@
 use clap::Parser;
 use glob::glob;
-use readmerger::recode_gzip_to_zstd;
+use readmerger::{build_merge_tree, prepare_for_merges};
 use std::io::{self, ErrorKind};
 
 // Search for a pattern in a file and display the lines that contain it.
@@ -14,7 +14,7 @@ struct Cli {
 fn main() -> io::Result<()> {
     let args = Cli::parse();
     let input_dir = args.readdir;
-    let output_path = args.output_name;
+    let _output_path = args.output_name;
 
     // Construct the search pattern
     let pattern = format!("{}/*.fastq.gz", input_dir);
@@ -40,10 +40,11 @@ fn main() -> io::Result<()> {
         return Err(io::Error::new(ErrorKind::NotFound, "No FASTQ files found"));
     }
 
-    // loop through each FASTQ and convert them to ZSTD
-    for fastq in fastq_files.iter() {
-        recode_gzip_to_zstd(&fastq, &output_path)?;
-    }
+    // determine which files will be appended to while re-compressing with Zstandard
+    let prepped_files = prepare_for_merges(fastq_files)?;
+
+    // construct merge tree
+    let _merge_tree = build_merge_tree(&prepped_files, None)?;
 
     Ok(())
 }
