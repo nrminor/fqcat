@@ -13,7 +13,7 @@ struct Cli {
 fn main() -> io::Result<()> {
     let args = Cli::parse();
     let input_dir = args.readdir;
-    let _output_path = args.output_name;
+    let output_path = args.output_name;
 
     // find input FASTQ files in the provided directory
     let fastq_files = find_fastqs(&input_dir)?;
@@ -25,7 +25,13 @@ fn main() -> io::Result<()> {
     let merge_tree = build_merge_tree(&prepped_files, None)?;
 
     // traverse the tree and merge file pairs until none remain
-    _ = traverse_tree(&merge_tree)?;
+    _ = traverse_tree(&merge_tree, &output_path)?;
+
+    println!(
+        "Files successfully merged. Merged file can be found in the current working \
+    directory under the name '{}'.",
+        output_path
+    );
 
     Ok(())
 }

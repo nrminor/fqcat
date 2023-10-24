@@ -150,12 +150,12 @@ async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<(
     Ok(())
 }
 
-pub fn traverse_tree(tree: &MergeTree) -> io::Result<()> {
+pub fn traverse_tree(tree: &MergeTree, output_name: &str) -> io::Result<()> {
     process_mergepairs(tree.merge_pairs.clone(), tree.level.clone())?;
 
     // Recur on the subtree if it exists
     if let Some(ref subtree) = tree.subtree {
-        traverse_tree(subtree)?;
+        traverse_tree(subtree, &output_name)?;
     }
 
     Ok(())
