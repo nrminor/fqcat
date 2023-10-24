@@ -1,5 +1,5 @@
 use clap::Parser;
-use readmerger::{build_merge_tree, find_fastqs, prepare_for_merges};
+use readmerger::{build_merge_tree, find_fastqs, prepare_for_merges, traverse_tree};
 use std::io;
 
 // Search for a pattern in a file and display the lines that contain it.
@@ -22,7 +22,10 @@ fn main() -> io::Result<()> {
     let prepped_files = prepare_for_merges(fastq_files)?;
 
     // construct merge tree
-    let _merge_tree = build_merge_tree(&prepped_files, None)?;
+    let merge_tree = build_merge_tree(&prepped_files, None)?;
+
+    // traverse the tree and merge file pairs until none remain
+    _ = traverse_tree(&merge_tree)?;
 
     Ok(())
 }

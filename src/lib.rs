@@ -1,21 +1,28 @@
 use bio::io::fastq::{Reader, Record, Writer};
 use flate2::read::GzDecoder;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use glob::glob;
 use std::fs;
 use std::io::ErrorKind;
 use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
+// use tokio::fs::File;
+// use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+// use async_compression::tokio::bufread::{GzipDecoder, ZstdDecoder};
+// use async_compression::tokio::write::ZstdEncoder;
+// use tokio::io::BufReader;
 
-    /*
-    NOTES TO SELF:
+/*
+NOTES TO SELF:
 
-    Will need to amend the functions below to retain the tmp fastq name from function
-    prepare_for_merges() throughout the merge tree and always append to it. Will also need
-    to code in behavior for if only two fastqs remain; in that case, merge them, convert
-    them to gzip, and apply the currently unused output filename.
-    
-    */
+Will need to amend the functions below to retain the tmp fastq name from function
+prepare_for_merges() throughout the merge tree and always append to it. Will also need
+to code in behavior for if only two fastqs remain; in that case, merge them, convert
+them to gzip, and apply the currently unused output filename.
+
+*/
 
 pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
     // Construct the search pattern
@@ -112,33 +119,46 @@ pub fn build_merge_tree(
     return Ok(tree);
 }
 
-fn merge_pair(pair: MergePair, output_name: String) {
+async fn merge_pair(pair: MergePair) -> io::Result<()> {
     // placeholder function for the process that will handle each merge
     println!(
-        "Merging {} with {} into {}",
+        "Merging {} with {}",
         pair.left_file.display(),
-        pair.right_file.display(),
-        output_name
+        pair.right_file.display()
     );
+
+    Ok(())
 }
 
-fn process_mergepairs(pairs: Vec<MergePair>, level: usize) {
-    // placeholder function for allocating a process for each merge
-    println!("Merging in level {} of the merge tree", level);
-    for (i, pair) in pairs.into_iter().enumerate() {
-        let output_name = format!("level{}_tmp{}.fastq.zst", level, i);
-        merge_pair(pair, output_name);
+#[tokio::main]
+async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<()> {
+    println!("Processing file pairs at level {} of the merge tree", level);
+
+    let mut futures = FuturesUnordered::new();
+
+    for pair in &pairs {
+        futures.push(merge_pair(pair.clone()));
     }
+
+    while let Some(result) = futures.next().await {
+        match result {
+            Ok(_) => println!("Successfully appended and compressed."),
+            Err(e) => eprintln!("An error occurred: {}", e),
+        }
+    }
+
+    Ok(())
 }
 
-pub fn traverse_tree(tree: &MergeTree) {
-    // place holder for recursive function that goes "down" the hierarchy of the merge tree
-    process_mergepairs(tree.merge_pairs.clone(), tree.level.clone());
+pub fn traverse_tree(tree: &MergeTree) -> io::Result<()> {
+    process_mergepairs(tree.merge_pairs.clone(), tree.level.clone())?;
 
     // Recur on the subtree if it exists
     if let Some(ref subtree) = tree.subtree {
-        traverse_tree(subtree);
+        traverse_tree(subtree)?;
     }
+
+    Ok(())
 }
 
 pub fn prepare_for_merges(file_list: Vec<String>) -> Result<Vec<String>, io::Error> {
