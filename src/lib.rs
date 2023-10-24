@@ -5,7 +5,7 @@ use futures::StreamExt;
 use glob::glob;
 use std::fs;
 use std::io::ErrorKind;
-use std::io::{self, BufReader, BufWriter};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
 // use tokio::fs::File;
@@ -122,22 +122,65 @@ pub fn build_merge_tree(
 async fn merge_pair(pair: MergePair) -> io::Result<()> {
     // placeholder function for the process that will handle each merge
 
-    let left_file = match pair.left_file.to_str() {
-        Some(_) => pair.left_file.to_str().unwrap(),
-        None => return Err(io::Error::new(io::ErrorKind::NotFound, "Left file was None")),
-    };
+    // convert the left file in the pair to a string
+    let left_file = pair
+        .left_file
+        .to_str()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Left file was None"))?;
 
+    // based on whether the left file is an intermediate file that has
+    // resulted from a previous merge, bind file paths so that the correct
+    // file is appended to
     let (file1, file2) = if left_file.contains("tmp") {
         (&pair.left_file, &pair.right_file)
     } else {
         (&pair.right_file, &pair.left_file)
     };
 
-    println!(
-        "Merging {} with {}",
-        file1.display(),
-        file2.display()
-    );
+    // open and buffer the file to be appended
+    let file_to_append = fs::File::open(&file2)?;
+
+    // decode the file to append based on whether or how it is compressed
+    let reader: Box<dyn Read> = if file2.ends_with(".zst") {
+        Box::new(zstd::Decoder::new(file_to_append)?)
+    } else if file2.ends_with(".gz") {
+        Box::new(GzDecoder::new(file_to_append))
+    } else {
+        Box::new(file_to_append)
+    };
+
+    // buffer the reader and define the batch
+    let read_buffer = BufReader::new(reader);
+    let mut batch: Vec<String> = Vec::new();
+
+    // Open or create the output file and create a zstd encoder for it
+    let output_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(file2)?;
+    let mut encoder = Encoder::new(output_file, 0)?;
+
+    for line in read_buffer.lines() {
+        let line = line?;
+        batch.push(line);
+
+        if batch.len() >= 1000 {
+            for line in &batch {
+                writeln!(encoder, "{}", line)?;
+            }
+            batch.clear();
+        }
+    }
+
+    if !batch.is_empty() {
+        for line in batch {
+            writeln!(encoder, "{}", line)?;
+        }
+    }
+
+    encoder.finish()?;
+
+    println!("Merging {} with {}", file1.display(), file2.display());
 
     Ok(())
 }
