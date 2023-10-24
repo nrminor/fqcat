@@ -8,11 +8,6 @@ use std::io::ErrorKind;
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
-// use tokio::fs::File;
-// use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
-// use async_compression::tokio::bufread::{GzipDecoder, ZstdDecoder};
-// use async_compression::tokio::write::ZstdEncoder;
-// use tokio::io::BufReader;
 
 /*
 NOTES TO SELF:
