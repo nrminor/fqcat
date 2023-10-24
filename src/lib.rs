@@ -121,10 +121,22 @@ pub fn build_merge_tree(
 
 async fn merge_pair(pair: MergePair) -> io::Result<()> {
     // placeholder function for the process that will handle each merge
+
+    let left_file = match pair.left_file.to_str() {
+        Some(_) => pair.left_file.to_str().unwrap(),
+        None => return Err(io::Error::new(io::ErrorKind::NotFound, "Left file was None")),
+    };
+
+    let (file1, file2) = if left_file.contains("tmp") {
+        (&pair.left_file, &pair.right_file)
+    } else {
+        (&pair.right_file, &pair.left_file)
+    };
+
     println!(
         "Merging {} with {}",
-        pair.left_file.display(),
-        pair.right_file.display()
+        file1.display(),
+        file2.display()
     );
 
     Ok(())
