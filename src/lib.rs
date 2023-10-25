@@ -1,5 +1,4 @@
-use bio::io::fastq::{Reader, Record, Writer};
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use glob::glob;
@@ -71,49 +70,20 @@ pub fn prepare_for_merges(
 }
 
 fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
-    // Create a buffer for holding 1000 records
-    let mut buffer: Vec<Record> = Vec::with_capacity(1000);
+    let file = fs::File::open(input_path)?;
 
-    // Open the gzipped input FASTQ file
-    let reader = BufReader::new(GzDecoder::new(fs::File::open(input_path)?));
+    let reader = BufReader::new(MultiGzDecoder::new(file));
 
-    // Create FASTQ reader
-    let fastq_reader = Reader::new(reader);
+    let output_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(output_path)?;
 
-    // Open the Zstd compressed output FASTQ file
-    let writer = BufWriter::new(Encoder::new(fs::File::create(output_path)?, 3)?);
+    let mut writer = std::io::BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
 
-    // Create FASTQ writer
-    let mut fastq_writer = Writer::new(writer);
-
-    // Loop over records
-    for result in fastq_reader.records() {
-        match result {
-            Ok(record) => {
-                buffer.push(record);
-
-                if buffer.len() == 1000 {
-                    // Write the buffered records to the Zstd compressed output file
-                    for rec in &buffer {
-                        fastq_writer.write_record(rec)?;
-                        fastq_writer.flush()?;
-                    }
-
-                    // Clear the buffer
-                    buffer.clear();
-                }
-            }
-            Err(error) => {
-                eprintln!("Encountered an error while reading: {}", error);
-                continue;
-            }
-        }
-    }
-
-    // Write any remaining records in the buffer
-    for rec in &buffer {
-        fastq_writer.write_record(rec)?;
-        fastq_writer.flush()?;
+    for line in reader.lines() {
+        let line = line.unwrap();
+        writeln!(writer, "{}", line).expect("Line could not be written.");
     }
 
     Ok(())
@@ -210,7 +180,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
     let reader: Box<dyn Read> = if file2.ends_with(".zst") {
         Box::new(zstd::Decoder::new(file_to_append)?)
     } else if file2.ends_with(".gz") {
-        Box::new(GzDecoder::new(file_to_append))
+        Box::new(MultiGzDecoder::new(file_to_append))
     } else {
         Box::new(file_to_append)
     };
@@ -224,7 +194,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
         .create(true)
         .append(true)
         .open(file2)?;
-    let mut encoder = Encoder::new(output_file, 0)?;
+    let mut encoder = BufWriter::new(Encoder::new(output_file, 0)?.auto_finish());
 
     for line in read_buffer.lines() {
         let line = line?;
@@ -244,9 +214,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
         }
     }
 
-    encoder.finish()?;
-
-    println!("Merging {} with {}", file1.display(), file2.display());
+    println!("Appending {} onto {}", file2.display(), file1.display());
 
     Ok(())
 }
@@ -264,7 +232,9 @@ async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<(
     while let Some(result) = futures.next().await {
         match result {
             Ok(_) => println!("Successfully appended and compressed."),
-            Err(e) => eprintln!("An error occurred: {}", e),
+            Err(e) => eprintln!(
+                "An error occurred when running merges in parallel:\n'{}',\nError occurred when awaiting merge completions.", e
+            ),
         }
     }
 
