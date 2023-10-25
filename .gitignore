@@ -15,3 +15,9 @@ target/
 
 # R history files
 .Rhistory
+
+# testing folders
+scratch/
+sandbox/
+dev/
+debug/

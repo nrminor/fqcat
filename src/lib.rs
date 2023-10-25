@@ -33,7 +33,10 @@ pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
         match entry {
             Ok(path) => {
                 let path_str = path.display().to_string();
-                fastq_files.push(path_str);
+                let file_base = path.file_name().unwrap().to_str().unwrap();
+                if !file_base.starts_with("._") {
+                    fastq_files.push(path_str);
+                }
             }
             Err(e) => println!("{:?}", e),
         }
@@ -47,7 +50,10 @@ pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
     return Ok(fastq_files);
 }
 
-pub fn prepare_for_merges(file_list: Vec<String>) -> Result<Vec<String>, io::Error> {
+pub fn prepare_for_merges(
+    file_list: Vec<String>,
+    search_dir: &String,
+) -> Result<Vec<String>, io::Error> {
     let mut new_files = Vec::with_capacity(file_list.len());
     let mut new_file_name: String;
 
@@ -56,7 +62,7 @@ pub fn prepare_for_merges(file_list: Vec<String>) -> Result<Vec<String>, io::Err
             new_files.push(file);
             continue;
         }
-        new_file_name = format!("level{}_tmp{}.fastq.zst", 1, i);
+        new_file_name = format!("{}/tmp{}.fastq.zst", search_dir, i);
         recode_gzip_to_zstd(&file, &new_file_name)?;
         new_files.push(new_file_name);
     }
@@ -75,7 +81,7 @@ fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
     let fastq_reader = Reader::new(reader);
 
     // Open the Zstd compressed output FASTQ file
-    let writer = BufWriter::new(Encoder::new(fs::File::create(output_path)?, 0)?);
+    let writer = BufWriter::new(Encoder::new(fs::File::create(output_path)?, 3)?);
 
     // Create FASTQ writer
     let mut fastq_writer = Writer::new(writer);
@@ -90,15 +96,11 @@ fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
                     // Write the buffered records to the Zstd compressed output file
                     for rec in &buffer {
                         fastq_writer.write_record(rec)?;
+                        fastq_writer.flush()?;
                     }
 
                     // Clear the buffer
                     buffer.clear();
-                }
-
-                // Write any remaining records in the buffer
-                for rec in &buffer {
-                    fastq_writer.write_record(rec)?;
                 }
             }
             Err(error) => {
@@ -108,18 +110,25 @@ fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
         }
     }
 
+    // Write any remaining records in the buffer
+    for rec in &buffer {
+        fastq_writer.write_record(rec)?;
+        fastq_writer.flush()?;
+    }
+
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MergePair {
     left_file: PathBuf,
     right_file: PathBuf,
 }
 
+#[derive(Debug)]
 pub struct MergeTree {
     level: usize,
-    files: Vec<String>,
+    post_merge_files: Vec<String>,
     merge_pairs: Vec<MergePair>,
     subtree: Option<Box<MergeTree>>,
 }
@@ -132,7 +141,7 @@ pub fn build_merge_tree(
     let previous_level = level.unwrap_or(&0);
 
     // figure out how many files will be present after merging
-    let new_file_count;
+    let new_file_count: usize;
     if file_list.len() % 2 == 0 {
         new_file_count = file_list.len() / 2;
     } else {
@@ -140,10 +149,10 @@ pub fn build_merge_tree(
     }
 
     // allocate a vector of that length
-    let mut new_files: Vec<String> = Vec::with_capacity(new_file_count);
+    let mut tmp_files: Vec<String> = Vec::with_capacity(new_file_count);
 
     // construct a list of pairs with any remainders
-    let mut merge_pairs: Vec<MergePair> = Vec::new();
+    let mut merge_pairs: Vec<MergePair> = Vec::with_capacity(new_file_count);
     let mut iter = file_list.into_iter();
     while let Some(left) = iter.next() {
         if let Some(right) = iter.next() {
@@ -151,28 +160,23 @@ pub fn build_merge_tree(
                 left_file: PathBuf::from(left),
                 right_file: PathBuf::from(right),
             });
+            tmp_files.push(left.clone());
         } else {
-            new_files.push(left.clone());
+            tmp_files.push(left.clone());
         }
-    }
-
-    // finish constructing new file list
-    for (i, _) in merge_pairs.iter().enumerate() {
-        let formatted_str = format!("level{}_tmp{}.fastq.zst", previous_level + 1, i);
-        new_files.push(formatted_str)
     }
 
     // build a new tree for the provided files
     let mut tree = MergeTree {
         level: previous_level + 1,
-        files: new_files,
+        post_merge_files: tmp_files,
         merge_pairs,
         subtree: None,
     };
 
     // if there are more than two new files, construct a subtree
-    if &tree.files.len() > &2 {
-        tree.subtree = Some(Box::new(build_merge_tree(&tree.files, Some(&tree.level))?));
+    if &tree.post_merge_files.len() > &1 {
+        tree.subtree = Some(Box::new(build_merge_tree(&tree.post_merge_files, Some(&tree.level))?));
     }
 
     return Ok(tree);
