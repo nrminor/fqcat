@@ -17,6 +17,7 @@ fn main() -> io::Result<()> {
 
     // find input FASTQ files in the provided directory
     let fastq_files = find_fastqs(&input_dir)?;
+    println!("Found the following fastqs files to merge:\n{:?}", fastq_files);
 
     // determine which files will be appended to while re-compressing with Zstandard
     let prepped_files = prepare_for_merges(fastq_files)?;
