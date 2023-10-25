@@ -176,7 +176,10 @@ pub fn build_merge_tree(
 
     // if there are more than two new files, construct a subtree
     if &tree.post_merge_files.len() > &1 {
-        tree.subtree = Some(Box::new(build_merge_tree(&tree.post_merge_files, Some(&tree.level))?));
+        tree.subtree = Some(Box::new(build_merge_tree(
+            &tree.post_merge_files,
+            Some(&tree.level),
+        )?));
     }
 
     return Ok(tree);

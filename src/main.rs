@@ -27,16 +27,9 @@ fn main() -> io::Result<()> {
 
     // construct merge tree
     let merge_tree = build_merge_tree(&prepped_files, None)?;
-    println!("{:?}", &merge_tree);
 
     // traverse the tree and merge file pairs until none remain
     _ = traverse_tree(&merge_tree, &output_path)?;
-
-    println!(
-        "Files successfully merged. Merged file can be found in the current working \
-    directory under the name '{}'.",
-        output_path
-    );
 
     Ok(())
 }
