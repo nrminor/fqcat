@@ -19,14 +19,15 @@ more to be done. This version includes some ugly concessions I made to the borro
 checker to get something working sooner, including:
  - lots of clones
  - some unwraps and expects
- - lots of error handling that could be done better
+ - more generally, lots of error handling that could be done better
  - do away with hardcoded final fastq name
  - allow FASTQs labeled ".fq"
+ - the ugly code duplication to handle different decoders
 
 It's also, somehow, slow!
 
 I'd like to gradually smooth these things out and also add the following:
- - support for zstd-compressed, bzip2, or uncompressed FASTQs
+ - support for bzip2-compressed FASTQs
  - a `--verbose` command line flag that will turn on more detailed logging
  to stdout
  - FASTQ line buffering, and generally better memory management to reduce I/O
