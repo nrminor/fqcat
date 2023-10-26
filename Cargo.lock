@@ -222,16 +222,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad152d03a2c813c80bb94fedbf3a3f02b28f793e39e7c214c8a0bcc196343de7"
 
 [[package]]
-name = "bytelines"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "784face321c535fcd9a1456632fa720aa53ea0640b57341d961c8c09de2da59f"
-dependencies = [
- "futures",
- "tokio",
-]
-
-[[package]]
 name = "bytemuck"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -970,7 +960,6 @@ version = "0.1.0"
 dependencies = [
  "async-compression",
  "bio",
- "bytelines",
  "clap",
  "flate2",
  "futures",

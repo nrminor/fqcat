@@ -1,5 +1,3 @@
-use bytelines;
-use bytelines::ByteLines;
 use flate2::read::MultiGzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -209,8 +207,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
 
     // buffer the reader, pull out the lines, and define the batch
     let read_buffer = BufReader::new(reader);
-    let mut lines = ByteLines::new(read_buffer);
-    let mut batch = vec![];
+    let mut batch = Vec::with_capacity(1000);
 
     // Open or create the output file and create a zstd encoder for it
     let output_file = std::fs::OpenOptions::new()
@@ -219,12 +216,11 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
         .open(file1)?;
     let mut encoder = BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
 
-    while let Some(line) = lines.next() {
-        let byte_line = line?.to_owned();
-        let this_line = String::from_utf8_lossy(&byte_line).to_string();
-        batch.push(this_line.clone());
+    for line in read_buffer.lines() {
+        let this_line = line?;
+        batch.push(this_line);
 
-        if &batch.len() >= &1000 {
+        if &batch.len() == &1000 {
             for batch_line in &batch {
                 writeln!(encoder, "{:?}", batch_line)?;
             }
