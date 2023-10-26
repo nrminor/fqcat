@@ -24,8 +24,6 @@ checker to get something working sooner, including:
  - allow FASTQs labeled ".fq"
  - the ugly code duplication to handle different decoders
 
-It's also, somehow, slow!
-
 I'd like to gradually smooth these things out and also add the following:
  - support for bzip2-compressed FASTQs
  - a `--verbose` command line flag that will turn on more detailed logging
