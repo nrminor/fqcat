@@ -22,6 +22,9 @@ sandbox/
 dev/
 debug/
 
+# debug logs
+*.log
+
 # never push bioinformatic files
 *.fastq.gz
 *.fastq.zst

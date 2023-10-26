@@ -267,7 +267,18 @@ async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<(
     Ok(())
 }
 
-fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
+pub fn traverse_tree(tree: &MergeTree) -> io::Result<()> {
+    process_mergepairs(tree.merge_pairs.clone(), tree.level.clone())?;
+
+    // Recur on the subtree if it exists
+    if let Some(ref subtree) = tree.subtree {
+        traverse_tree(subtree)?;
+    }
+
+    Ok(())
+}
+
+pub fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
     println!("Running final conversion.");
 
     // handle the input
@@ -289,19 +300,6 @@ fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
 
     // remove final tmp file
     remove_file(format!("{}/tmp0.fastq.zst", readdir))?;
-
-    Ok(())
-}
-
-pub fn traverse_tree(tree: &MergeTree, readdir: &str, output_name: &str) -> io::Result<()> {
-    process_mergepairs(tree.merge_pairs.clone(), tree.level.clone())?;
-
-    // Recur on the subtree if it exists
-    if let Some(ref subtree) = tree.subtree {
-        traverse_tree(subtree, &readdir, &output_name)?;
-    }
-
-    _ = publish_final_fastq(readdir, output_name)?;
 
     Ok(())
 }
