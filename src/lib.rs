@@ -11,10 +11,25 @@ use zstd::stream::write::Encoder;
 /*
 NOTES TO SELF:
 
-Will need to amend the functions below to retain the tmp fastq name from function
-prepare_for_merges() throughout the merge tree and always append to it. Will also need
-to code in behavior for if only two fastqs remain; in that case, merge them, convert
-them to gzip, and apply the currently unused output filename.
+The first working version of this package is almost done. What remains is the following:
+ - fix Zstd encoder for each tmp FASTQ
+ - have the merger function remove the tmp FASTQ that was just appended
+ - add a function that recodes the final FASTQ
+
+With that, we will have a working tool called readmerger. That said, there will be much
+more ahead from there. This version includes some ugly concessions I made to the borrow
+checker to get something working sooner, including:
+ - lots of clones
+ - some unwraps and expects
+ - lots of error handling that could be done better
+
+I'd like to gradually smooth these things out and also add the following:
+ - a `--verbose` command line flag that will turn on more detailed logging
+ to stdout
+ - FASTQ line buffering, and generally better memory management to reduce I/O
+ - perhaps a simplification of `prepare_merge_tree()` to bring `prepare_for_merges()`
+ into the fold and out of main
+ - documentation for the whole API
 
 */
 
