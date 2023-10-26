@@ -21,3 +21,11 @@ scratch/
 sandbox/
 dev/
 debug/
+
+# never push bioinformatic files
+*.fastq.gz
+*.fastq.zst
+*.fastq
+*.fq.gz
+*.fq.zst
+*.fq

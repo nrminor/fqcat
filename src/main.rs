@@ -2,7 +2,6 @@ use clap::Parser;
 use readmerger::{build_merge_tree, find_fastqs, prepare_for_merges, traverse_tree};
 use std::io;
 
-// Search for a pattern in a file and display the lines that contain it.
 #[derive(Parser)]
 struct Cli {
     #[clap(value_enum)]
@@ -29,7 +28,7 @@ fn main() -> io::Result<()> {
     let merge_tree = build_merge_tree(&prepped_files, None)?;
 
     // traverse the tree and merge file pairs until none remain
-    _ = traverse_tree(&merge_tree, &output_path)?;
+    _ = traverse_tree(&merge_tree, &input_dir, &output_path)?;
 
     Ok(())
 }
