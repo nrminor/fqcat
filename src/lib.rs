@@ -7,7 +7,7 @@ use glob::glob;
 use std::fs;
 use std::fs::remove_file;
 use std::io::ErrorKind;
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
 use zstd::Decoder;
@@ -27,6 +27,7 @@ checker to get something working sooner, including:
 It's also, somehow, slow!
 
 I'd like to gradually smooth these things out and also add the following:
+ - support for zstd-compressed, bzip2, or uncompressed FASTQs
  - a `--verbose` command line flag that will turn on more detailed logging
  to stdout
  - FASTQ line buffering, and generally better memory management to reduce I/O
@@ -196,14 +197,8 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
     // open and buffer the file to be appended
     let file_to_append = fs::File::open(&file2)?;
 
-    // decode the file to append based on whether or how it is compressed
-    let reader: Box<dyn Read> = if file2.ends_with(".zst") {
-        Box::new(zstd::Decoder::new(file_to_append)?)
-    } else if file2.ends_with(".gz") {
-        Box::new(MultiGzDecoder::new(file_to_append))
-    } else {
-        Box::new(file_to_append)
-    };
+    // decode the file to append
+    let reader = MultiGzDecoder::new(file_to_append);
 
     // buffer the reader, pull out the lines, and define the batch
     let read_buffer = BufReader::new(reader);
