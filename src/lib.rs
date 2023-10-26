@@ -222,7 +222,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
 
         if &batch.len() == &1000 {
             for batch_line in &batch {
-                writeln!(encoder, "{:?}", batch_line)?;
+                writeln!(encoder, "{}", batch_line)?;
             }
             batch.clear();
         }
@@ -230,7 +230,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
 
     if !&batch.is_empty() {
         for batch_line in batch {
-            writeln!(encoder, "{:?}", batch_line)?;
+            writeln!(encoder, "{}", batch_line)?;
         }
     }
 
