@@ -237,6 +237,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
         }
     }
 
+    println!("Merge successful; removing {:?}.", file2.display());
     if file2.display().to_string().contains("tmp") {
         remove_file(file2)?;
     }
@@ -256,7 +257,7 @@ async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<(
 
     while let Some(result) = futures.next().await {
         match result {
-            Ok(_) => println!("Successfully appended and compressed."),
+            Ok(_) => println!("Successfully appended, compressed, and cleaned {:?}", &pairs),
             Err(e) => eprintln!(
                 "An error occurred when running merges in parallel:\n'{}',\nError occurred when awaiting merge completions.", e
             ),
@@ -267,6 +268,8 @@ async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<(
 }
 
 fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
+    println!("Running final conversion.");
+
     // handle the input
     let input_path = format!("{}/tmp0.fastq.zst", readdir);
     let open_input = fs::File::open(&input_path)?;
@@ -281,6 +284,8 @@ fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
         let line = line.unwrap();
         writeln!(encoder, "{}", line).expect("Line could not be written.");
     }
+
+    println!("Conversion complete; removing {}", format!("{}/tmp0.fastq.zst", readdir));
 
     // remove final tmp file
     remove_file(format!("{}/tmp0.fastq.zst", readdir))?;
