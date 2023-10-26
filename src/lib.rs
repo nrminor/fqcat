@@ -221,9 +221,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
 
     while let Some(line) = lines.next() {
         let byte_line = line?.to_owned();
-        let this_line = std::str::from_utf8(&byte_line)
-            .expect("Could not convert bytes to UTF 8")
-            .to_string();
+        let this_line = String::from_utf8_lossy(&byte_line).to_string();
         batch.push(this_line.clone());
 
         if &batch.len() >= &1000 {
