@@ -26,6 +26,7 @@ fn main() -> io::Result<()> {
 
     // construct merge tree
     let merge_tree = build_merge_tree(&prepped_files, None)?;
+    println!("\n\nMerge tree constructed:{:#?}\n\n", merge_tree);
 
     // traverse the tree and merge file pairs until none remain
     _ = traverse_tree(&merge_tree, &input_dir, &output_path)?;
