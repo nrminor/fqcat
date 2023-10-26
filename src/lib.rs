@@ -220,8 +220,11 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
     let mut encoder = BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
 
     while let Some(line) = lines.next() {
-        let this_line = line?.to_owned();
-        batch.push(this_line);
+        let byte_line = line?.to_owned();
+        let this_line = std::str::from_utf8(&byte_line)
+            .expect("Could not convert bytes to UTF 8")
+            .to_string();
+        batch.push(this_line.clone());
 
         if &batch.len() >= &1000 {
             for batch_line in &batch {

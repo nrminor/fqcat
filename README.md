@@ -3,6 +3,16 @@
 
 *Never merge your reads with `find` and `cat` again!*
 
+### Recommended Usage
+Readmerger is at a very early stage of development. Many Rust idioms that should not be included in production code are still written into source, and file reading and writing is not yet working. Still, the general framework of the application is established and can be used/tested with caution.
+
+For these informal use cases, we recommend users clone the repository, build it, and then run it like so:
+```
+./target/release/readmerger /path/to/fastq/files/ merged.fastq.gz > readmerger.log
+```
+
+This will run readmerger on your fastq files and save outputs to a log file. Those outputs include, most importantly, a pretty-printed merge tree that details the order with which files are merged.
+
 ### The Problem
 Readmerger isn't finished yet, but the vision is for it to be a much faster replacement for using `cat` to merge Oxford Nanopore FASTQ files into one per barcode. Typically, Nanopore reads come out of basecalling and demultiplexing in many FASTQ files, which then must be merged. This is most often achieved with a command like this:
 ```
