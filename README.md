@@ -4,7 +4,7 @@
 *Never merge your reads with `find` and `cat` again!*
 
 ### Recommended Usage
-Readmerger is at a very early stage of development. Many Rust idioms that should not be included in production code are still written into source, and file reading and writing is not yet working. Still, the general framework of the application is established and can be used/tested with caution.
+Readmerger is at a very early stage of development. Many Rust idioms that should not be included in production code are still written into source, making it more error-prone and unpredictable (be reassured that any bugs are not memory-related, thanks to Rust's built-in memory safety). Caveats aside, the general framework of the application is established, and it appears to be working for rapidly merging gzip- or zstd-compressed FASTQ files. We invite any interested users to use and test it with caution.
 
 For these informal use cases, we recommend users clone the repository, build it, and then run it like so:
 ```
