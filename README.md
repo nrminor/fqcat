@@ -6,12 +6,17 @@
 ### Recommended Usage
 Readmerger is at a very early stage of development. Many Rust idioms that should not be included in production code are still written into source, making it more error-prone and unpredictable (be reassured that any bugs are not memory-related, thanks to Rust's built-in memory safety). Caveats aside, the general framework of the application is established, and it appears to be working for rapidly merging gzip- or zstd-compressed FASTQ files. We invite any interested users to use and test it with caution.
 
-For these informal use cases, we recommend users clone the repository, build it, and then run it like so:
+For these informal use cases, we recommend users go through the following steps:
+0. Make sure [the Rust toolchain[(https://www.rust-lang.org/tools/install)] is installed.
+1. Clone this repository with `git clone https://github.com/nrminor/readmerger.git`.
+2. Build readmerger with `cargo build readmerger/`.
+3. Run it like so:
 ```
 ./target/release/readmerger /path/to/fastq/files/ merged.fastq.gz > readmerger.log
 ```
 
-This will run readmerger on your fastq files and save outputs to a log file. Those outputs include, most importantly, a pretty-printed merge tree that details the order with which files are merged.
+This will run readmerger on your fastq files and save outputs to a log file. Those outputs include, most importantly, a pretty-printed merge tree that details the order with which files are merged. Note also that readmerger will also be available through [cargo.io] in the future, which will simplify installation.
+
 
 ### The Problem
 Readmerger isn't finished yet, but the vision is for it to be a much faster replacement for using `cat` to merge Oxford Nanopore FASTQ files into one per barcode. Typically, Nanopore reads come out of basecalling and demultiplexing in many FASTQ files, which then must be merged. This is most often achieved with a command like this:
