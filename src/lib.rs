@@ -13,24 +13,36 @@ use zstd::Decoder;
 
 pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
     // Construct the search pattern
-    let pattern = format!("{}/*.fastq.gz", search_dir);
+    let pattern = if search_dir.ends_with('/') {
+        format!("{}*.fastq.gz", search_dir)
+    } else {
+        format!("{}/{}.fastq.gz", search_dir, "*")
+    };
 
     // Initialize an empty vector to hold the paths
     let mut fastq_files: Vec<String> = Vec::new();
 
     // Use glob to search for files matching the pattern
-    for entry in
-        glob(&pattern).expect("Failed to find any FASTQ files in the provided directory pattern")
+    for entry in glob(&pattern)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Glob pattern error: {}", e)))?
     {
         match entry {
             Ok(path) => {
-                let path_str = path.display().to_string();
-                let file_base = path.file_name().unwrap().to_str().unwrap();
-                if !file_base.starts_with("._") {
-                    fastq_files.push(path_str);
+                if path
+                    .file_name()
+                    .and_then(|os_str| os_str.to_str())
+                    .map(|file_base| !file_base.starts_with("._"))
+                    .unwrap_or(false)
+                {
+                    fastq_files.push(path.display().to_string());
                 }
             }
-            Err(e) => println!("{:?}", e),
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Error recording FASTA name:\n{}", e),
+                ));
+            }
         }
     }
 
@@ -54,7 +66,11 @@ pub fn prepare_for_merges(
             new_files.push(file);
             continue;
         }
-        new_file_name = format!("{}/tmp{}.fastq.zst", search_dir, i);
+        new_file_name = if search_dir.ends_with('/') {
+            format!("{}tmp{}.fastq.zst", search_dir, i)
+        } else {
+            format!("{}/tmp{}.fastq.zst", search_dir, i)
+        };
         recode_gzip_to_zstd(&file, &new_file_name)?;
         new_files.push(new_file_name);
     }
@@ -75,8 +91,17 @@ fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
     let mut writer = std::io::BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
 
     for line in reader.lines() {
-        let line = line.unwrap();
-        writeln!(writer, "{}", line).expect("Line could not be written.");
+        match line {
+            Ok(line_content) => {
+                writeln!(writer, "{}", line_content)?;
+            }
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Error reading line:\n{}", e),
+                ));
+            }
+        }
     }
 
     Ok(())
@@ -122,9 +147,9 @@ pub fn build_merge_tree(
                 left_file: PathBuf::from(left),
                 right_file: PathBuf::from(right),
             });
-            tmp_files.push(left.clone());
+            tmp_files.push(left.to_string());
         } else {
-            tmp_files.push(left.clone());
+            tmp_files.push(left.to_string());
         }
     }
 
@@ -178,7 +203,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
 
         // buffer the reader, pull out the lines, and define the batch
         let read_buffer = BufReader::new(decoder);
-        let mut batch = Vec::with_capacity(1000);
+        let mut batch: Vec<String> = Vec::with_capacity(1000);
 
         // Open or create the output file and create a zstd encoder for it
         let output_file = std::fs::OpenOptions::new()
@@ -214,7 +239,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
 
         // buffer the reader, pull out the lines, and define the batch
         let read_buffer = BufReader::new(decoder);
-        let mut batch = Vec::with_capacity(1000);
+        let mut batch: Vec<String> = Vec::with_capacity(1000);
 
         // Open or create the output file and create a zstd encoder for it
         let output_file = std::fs::OpenOptions::new()
@@ -331,8 +356,17 @@ pub fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
 
     // convert to final output
     for line in decoder.lines() {
-        let line = line.unwrap();
-        writeln!(encoder, "{}", line).expect("Line could not be written.");
+        match line {
+            Ok(line_content) => {
+                writeln!(encoder, "{}", line_content)?;
+            }
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Line could not be written:\n{}", e),
+                ));
+            }
+        }
     }
 
     println!(
