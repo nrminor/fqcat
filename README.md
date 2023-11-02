@@ -9,7 +9,7 @@ Readmerger is at a very early stage of development, with many potential improvem
 For informal use cases, we recommend users go through the following steps to install and run readmerger:
 
 1. Make sure [the Rust toolchain](https://www.rust-lang.org/tools/install) is installed.
-2. Install readmerger from [crates.io](https://crates.io/crates/readmerger) with `cargo install readmerger -v 0.1.0-alpha
+2. Install readmerger from [crates.io](https://crates.io/crates/readmerger) with `cargo install readmerger --version 0.1.0-alpha
 `
 1. Run it like so:
 ```
