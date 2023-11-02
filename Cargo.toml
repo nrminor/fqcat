@@ -1,9 +1,25 @@
 [package]
 name = "readmerger"
-version = "0.1.0"
+description = "Tool for rapidly merging FASTQ files. Never use cat again!"
+version = "0.1.0-alpha"
 edition = "2021"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/nrminor/readmerger"
+homepage = "https://github.com/nrminor/readmerger"
+documentation = "https://github.com/nrminor/readmerger/blob/main/README.md"
+keywords = ["science", "reproducibility", "bioinformatics", "data"]
+categories = ["command-line-utilities", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "readmerger"
+path = "src/lib.rs"
+
+[[bin]]
+name = "readmerger"
+path = "src/main.rs"
 
 [dependencies]
 bio = "1.4.0"
