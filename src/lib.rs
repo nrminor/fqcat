@@ -4,36 +4,12 @@ use flate2::Compression;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use glob::glob;
-use std::fs::{File, remove_file};
+use std::fs::{remove_file, File};
 use std::io::ErrorKind;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use zstd::stream::write::Encoder;
 use zstd::Decoder;
-
-/*
-NOTES TO SELF:
-
-We now have a working tool called readmerger. That said, though it works, there's much
-more to be done. This version includes some ugly concessions I made to the borrow
-checker to get something working sooner, including:
- - lots of clones
- - some unwraps and expects
- - more generally, lots of error handling that could be done better
- - do away with hardcoded final fastq name
- - allow FASTQs labeled ".fq"
- - the ugly code duplication to handle different decoders
-
-I'd like to gradually smooth these things out and also add the following:
- - support for bzip2-compressed FASTQs
- - a `--verbose` command line flag that will turn on more detailed logging
- to stdout
- - FASTQ line buffering, and generally better memory management to reduce I/O
- - perhaps a simplification of `prepare_merge_tree()` to bring `prepare_for_merges()`
- into the fold and out of main
- - documentation for the whole API
-
-*/
 
 pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
     // Construct the search pattern
@@ -63,7 +39,7 @@ pub fn find_fastqs(search_dir: &String) -> Result<Vec<String>, io::Error> {
         return Err(io::Error::new(ErrorKind::NotFound, "No FASTQ files found"));
     }
 
-    return Ok(fastq_files);
+    Ok(fastq_files)
 }
 
 pub fn prepare_for_merges(
@@ -83,7 +59,7 @@ pub fn prepare_for_merges(
         new_files.push(new_file_name);
     }
 
-    return Ok(new_files);
+    Ok(new_files)
 }
 
 fn recode_gzip_to_zstd(input_path: &str, output_path: &str) -> io::Result<()> {
@@ -128,19 +104,18 @@ pub fn build_merge_tree(
     let previous_level = level.unwrap_or(&0);
 
     // figure out how many files will be present after merging
-    let new_file_count: usize;
-    if file_list.len() % 2 == 0 {
-        new_file_count = file_list.len() / 2;
+    let new_file_count: usize = if file_list.len() % 2 == 0 {
+        file_list.len() / 2
     } else {
-        new_file_count = (file_list.len() / 2) + 1;
-    }
+        file_list.len() / 2 + 1
+    };
 
     // allocate a vector of that length
     let mut tmp_files: Vec<String> = Vec::with_capacity(new_file_count);
 
     // construct a list of pairs with any remainders
     let mut merge_pairs: Vec<MergePair> = Vec::with_capacity(new_file_count);
-    let mut iter = file_list.into_iter();
+    let mut iter = file_list.iter();
     while let Some(left) = iter.next() {
         if let Some(right) = iter.next() {
             merge_pairs.push(MergePair {
@@ -162,18 +137,17 @@ pub fn build_merge_tree(
     };
 
     // if there are more than two new files, construct a subtree
-    if &tree.post_merge_files.len() > &1 {
+    if tree.post_merge_files.len() > 1 {
         tree.subtree = Some(Box::new(build_merge_tree(
             &tree.post_merge_files,
             Some(&tree.level),
         )?));
     }
 
-    return Ok(tree);
+    Ok(tree)
 }
 
 async fn merge_pair(pair: MergePair) -> io::Result<()> {
-
     // convert the left file in the pair to a string
     let left_file = pair
         .left_file
@@ -192,85 +166,86 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
     println!("Appending {} onto {}", file2.display(), file1.display());
 
     // open and buffer the file to be appended and report its extension
-    let file_to_append = File::open(&file2)?;
-    let ext = file2.extension().expect("File is incorrectly named. Be sure the file \
-        contains an extension that indicates whether it is compressed.");
+    let file_to_append = File::open(file2)?;
+    let ext = file2.extension().expect(
+        "File is incorrectly named. Be sure the file \
+        contains an extension that indicates whether it is compressed.",
+    );
 
     // decode the file to append
     if ext == "zst" {
-            let decoder = zstd::Decoder::new(file_to_append)?;
-            
-            // buffer the reader, pull out the lines, and define the batch
-            let read_buffer = BufReader::new(decoder);
-            let mut batch = Vec::with_capacity(1000);
+        let decoder = zstd::Decoder::new(file_to_append)?;
 
-            // Open or create the output file and create a zstd encoder for it
-            let output_file = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(file1)?;
-            let mut encoder = BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
+        // buffer the reader, pull out the lines, and define the batch
+        let read_buffer = BufReader::new(decoder);
+        let mut batch = Vec::with_capacity(1000);
 
-            for line in read_buffer.lines() {
-                let this_line = line?;
-                batch.push(this_line);
+        // Open or create the output file and create a zstd encoder for it
+        let output_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file1)?;
+        let mut encoder = BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
 
-                if &batch.len() == &1000 {
-                    for batch_line in &batch {
-                        writeln!(encoder, "{}", batch_line)?;
-                    }
-                    batch.clear();
-                }
-            }
+        for line in read_buffer.lines() {
+            let this_line = line?;
+            batch.push(this_line);
 
-            if !&batch.is_empty() {
-                for batch_line in batch {
+            if batch.len() == 1000 {
+                for batch_line in &batch {
                     writeln!(encoder, "{}", batch_line)?;
                 }
+                batch.clear();
             }
+        }
 
-            println!("Merge successful; removing {:?}.", file2.display());
-            if file2.display().to_string().contains("tmp") {
-                remove_file(file2)?;
+        if !&batch.is_empty() {
+            for batch_line in batch {
+                writeln!(encoder, "{}", batch_line)?;
             }
+        }
+
+        println!("Merge successful; removing {:?}.", file2.display());
+        if file2.display().to_string().contains("tmp") {
+            remove_file(file2)?;
+        }
     } else if ext == "gz" {
-            let decoder = MultiGzDecoder::new(file_to_append);
-            
-            // buffer the reader, pull out the lines, and define the batch
-            let read_buffer = BufReader::new(decoder);
-            let mut batch = Vec::with_capacity(1000);
+        let decoder = MultiGzDecoder::new(file_to_append);
 
-            // Open or create the output file and create a zstd encoder for it
-            let output_file = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(file1)?;
-            let mut encoder = BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
+        // buffer the reader, pull out the lines, and define the batch
+        let read_buffer = BufReader::new(decoder);
+        let mut batch = Vec::with_capacity(1000);
 
-            for line in read_buffer.lines() {
-                let this_line = line?;
-                batch.push(this_line);
+        // Open or create the output file and create a zstd encoder for it
+        let output_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(file1)?;
+        let mut encoder = BufWriter::new(Encoder::new(output_file, 3)?.auto_finish());
 
-                if &batch.len() == &1000 {
-                    for batch_line in &batch {
-                        writeln!(encoder, "{}", batch_line)?;
-                    }
-                    batch.clear();
-                }
-            }
+        for line in read_buffer.lines() {
+            let this_line = line?;
+            batch.push(this_line);
 
-            if !&batch.is_empty() {
-                for batch_line in batch {
+            if batch.len() == 1000 {
+                for batch_line in &batch {
                     writeln!(encoder, "{}", batch_line)?;
                 }
+                batch.clear();
             }
+        }
 
-            println!("Merge successful; removing {:?}.", file2.display());
-            if file2.display().to_string().contains("tmp") {
-                remove_file(file2)?;
+        if !&batch.is_empty() {
+            for batch_line in batch {
+                writeln!(encoder, "{}", batch_line)?;
             }
+        }
+
+        println!("Merge successful; removing {:?}.", file2.display());
+        if file2.display().to_string().contains("tmp") {
+            remove_file(file2)?;
+        }
     } else {
-            
         // buffer the reader, pull out the lines, and define the batch
         let read_buffer = BufReader::new(file_to_append);
         let mut batch = Vec::with_capacity(1000);
@@ -286,7 +261,7 @@ async fn merge_pair(pair: MergePair) -> io::Result<()> {
             let this_line = line?;
             batch.push(this_line);
 
-            if &batch.len() == &1000 {
+            if batch.len() == 1000 {
                 for batch_line in &batch {
                     writeln!(encoder, "{}", batch_line)?;
                 }
@@ -332,7 +307,7 @@ async fn process_mergepairs(pairs: Vec<MergePair>, level: usize) -> io::Result<(
 }
 
 pub fn traverse_tree(tree: &MergeTree) -> io::Result<()> {
-    process_mergepairs(tree.merge_pairs.clone(), tree.level.clone())?;
+    process_mergepairs(tree.merge_pairs.clone(), tree.level)?;
 
     // Recur on the subtree if it exists
     if let Some(ref subtree) = tree.subtree {
@@ -351,7 +326,7 @@ pub fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
     let decoder = std::io::BufReader::new(Decoder::new(open_input)?);
 
     // handle the output
-    let open_output = File::create(&output_name)?;
+    let open_output = File::create(output_name)?;
     let mut encoder = BufWriter::new(GzEncoder::new(open_output, Compression::default()));
 
     // convert to final output
@@ -360,7 +335,10 @@ pub fn publish_final_fastq(readdir: &str, output_name: &str) -> io::Result<()> {
         writeln!(encoder, "{}", line).expect("Line could not be written.");
     }
 
-    println!("Conversion complete; removing {}", format!("{}/tmp0.fastq.zst", readdir));
+    println!(
+        "Conversion complete; removing {}",
+        format_args!("{}/tmp0.fastq.zst", readdir)
+    );
 
     // remove final tmp file
     remove_file(format!("{}/tmp0.fastq.zst", readdir))?;

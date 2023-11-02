@@ -1,5 +1,7 @@
 use clap::Parser;
-use readmerger::{build_merge_tree, find_fastqs, prepare_for_merges, traverse_tree, publish_final_fastq};
+use readmerger::{
+    build_merge_tree, find_fastqs, prepare_for_merges, publish_final_fastq, traverse_tree,
+};
 use std::io;
 
 #[derive(Parser)]
@@ -29,15 +31,14 @@ fn main() -> io::Result<()> {
     println!("\n\nMerge tree constructed:\n\n{:#?}\n\n", merge_tree);
 
     // traverse the tree and merge file pairs until none remain
-    _ = traverse_tree(&merge_tree)
-        .expect("Merge tree could not be traversed.");
+    traverse_tree(&merge_tree).expect("Merge tree could not be traversed.");
 
     // publish the final FASTQ
     let final_result = publish_final_fastq(&input_dir, &output_path);
 
     match final_result {
         Ok(_) => println!("Readmerger completed successfully."),
-        Err(message) => panic!("Readmerger encountered this error:\n{}", message)
+        Err(message) => panic!("Readmerger encountered this error:\n{}", message),
     }
 
     Ok(())
