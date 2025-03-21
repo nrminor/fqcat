@@ -1,5 +1,5 @@
 [package]
-name = "readmerger"
+name = "fqcat"
 description = "Tool for rapidly merging FASTQ files. Never use cat again!"
 version = "0.1.0-alpha"
 edition = "2021"
@@ -14,11 +14,11 @@ categories = ["command-line-utilities", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "readmerger"
+name = "libfqcat"
 path = "src/lib.rs"
 
 [[bin]]
-name = "readmerger"
+name = "fqcat"
 path = "src/main.rs"
 
 [dependencies]

@@ -37,8 +37,8 @@ fn main() -> io::Result<()> {
     let final_result = publish_final_fastq(&input_dir, &output_path);
 
     match final_result {
-        Ok(_) => println!("Readmerger completed successfully."),
-        Err(message) => panic!("Readmerger encountered this error:\n{}", message),
+        Ok(_) => println!("fqcat completed successfully."),
+        Err(message) => panic!("fqcat encountered this error:\n{}", message),
     }
 
     Ok(())
