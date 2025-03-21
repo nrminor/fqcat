@@ -1,7 +1,7 @@
 [package]
 name = "fqcat"
 description = "Tool for rapidly merging FASTQ files. Never use cat again!"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 edition = "2021"
 license = "MIT"
 readme = "README.md"
