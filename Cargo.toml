@@ -5,9 +5,9 @@ version = "0.1.0-alpha"
 edition = "2021"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/nrminor/readmerger"
-homepage = "https://github.com/nrminor/readmerger"
-documentation = "https://github.com/nrminor/readmerger/blob/main/README.md"
+repository = "https://github.com/nrminor/fqcat"
+homepage = "https://github.com/nrminor/fqcat"
+documentation = "https://github.com/nrminor/fqcat/blob/main/README.md"
 keywords = ["science", "reproducibility", "bioinformatics", "data"]
 categories = ["command-line-utilities", "science"]
 

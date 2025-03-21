@@ -1,5 +1,5 @@
 use clap::Parser;
-use readmerger::{
+use libfqcat::{
     build_merge_tree, find_fastqs, prepare_for_merges, publish_final_fastq, traverse_tree,
 };
 use std::io;
